@@ -14,6 +14,7 @@ td.createOrReplaceTempView("td")
 #td.printSchema()#es necesario hacerlo para verificar que tipos de datos hay, si los datos numericos dice string es claro ejemplo de contaminacion 
 td.describe()#.show()# nos da la cantidad, media, desviacion estandar, minimos y maximos
 
+#td.select("categoria").distinct().show()
 #verificar nulos
 td.select([#se pone llaves para representar codigo python puro
 	count(when(col(c).isNull(),c)).alias(c)#cuenta cuantos datos hay nulos, 
@@ -97,7 +98,7 @@ td = td.filter(
 #verificacion de datos en string
 #verificacion de datos en ciudad
 #cuando hay mas de 20 datos distintos es mejor usar este antes que distinct dado que retorna dato y cantidad repetida
-td.groupBy("ciudad").count().orderBy(col("ciudad")).show(50, truncate=False)
+#td.groupBy("ciudad").count().orderBy(col("ciudad")).show(50, truncate=False)
 
 td = td.withColumn(
     "ciudad",
@@ -114,7 +115,7 @@ td = td.withColumn("metodo_pago", trim(col("metodo_pago")))
 td = td.withColumn("estado", trim(col("estado")))
 td = td.withColumn("email", trim(col("email")))
 
-#normalizacion de datos con minusculas
+#normalizacion de datos con mayuscula
 td = td.withColumn(
     "ciudad",
     lower(col("ciudad"))
@@ -133,8 +134,88 @@ td = td.withColumn(
     .otherwise(col("ciudad"))#es parte de la funcion when, se usa para evitar el retorno de nulos
 )
 #eliminacion de nulos
-td.filter(col("ciudad").isNotNull() & (td.ciudad == "NULL"))
+td = td.filter(col("ciudad").isNotNull())
 
-td.groupBy("ciudad").count().orderBy(col("ciudad")).show(50, truncate=False)
+#td.groupBy("ciudad").count().orderBy(col("ciudad")).show(50, truncate=False)
 
-print("Registros después de limpiar cantidades y precios:", td.count())
+#normalizar categoria
+
+td = td.withColumn(
+    "categoria",
+    when(lower(col("categoria")).isin("tecnologia", "tecnlogia"), "Tecnologia")
+    .when(lower(col("categoria")).isin("hogar", "hogarrr"), "Hogar")
+    .when(lower(col("categoria")).isin("oficina", "oficna"), "Oficina")
+    .otherwise(col("categoria"))
+)
+
+#td.groupBy("categoria").count().show()
+
+#normalizar metodos de pago
+td = td.withColumn(
+    "metodo_pago",
+    when(lower(col("metodo_pago")).isin("tarjeta", "tarjta"), "Tarjeta")
+    .when(lower(col("metodo_pago")) == "efectivo", "Efectivo")
+    .when(lower(col("metodo_pago")).isin("nequi", "neq"), "Nequi")
+    .when(lower(col("metodo_pago")) == "transferencia", "Transferencia")
+    .otherwise(col("metodo_pago"))
+)
+
+td = td.filter(col("metodo_pago").isNotNull())
+
+#td.groupBy("metodo_pago").count().show()
+
+#normalizar estados
+
+td = td.withColumn(
+    "estado",
+    when(lower(col("estado")).isin("completada", "completad"), "Completada")
+    .when(lower(col("estado")) == "cancelada", "Cancelada")
+    .when(lower(col("estado")).isin("pendiente", "pendient"), "Pendiente")
+    .when(col("estado")=="Desconocido",lit(None))#retorna ese dato como nulo
+    .otherwise(col("estado"))
+)
+
+td = td.filter(col("estado").isNotNull())
+
+#td.groupBy("estado").count().show()
+
+
+#normalizar fechas a formato a-m-d
+#td.groupBy("fecha").count().show()
+#td.select("fecha").distinct().show(150)
+
+#formatos existentes de fechas con una columna temporal
+td = td.withColumn(
+    "fecha_limpia",
+    coalesce(
+        try_to_date(col("fecha"), "yyyy-MM-dd"),
+        try_to_date(col("fecha"), "yyyy/MM/dd"),
+        try_to_date(col("fecha"), "MM-dd-yyyy"),
+        try_to_date(col("fecha"), "dd-MM-yyyy"),
+        try_to_date(col("fecha"), "dd/MM/yyyy")
+    )
+)
+
+# Convertimos al formato d/m/yyyy
+td = td.withColumn(
+    "fecha",
+    date_format(
+        col("fecha_limpia"),
+        "d/M/yyyy"
+    )
+)
+
+# Eliminamos la columna temporal
+td = td.drop("fecha_limpia")
+
+# Comprobamos
+td.select("fecha") \
+    .distinct() \
+    .show(200, truncate=False)
+
+#hasta el momento coalesce sirve para "unificar" variables, es recomendado no experimentar tanto, su funcion es mas compleja
+
+#pasamos todos los formatos a uno universal
+
+td.select("fecha").distinct().show(200, truncate=False)
+print("Registros después de limpiar: ", td.count())
