@@ -45,7 +45,8 @@ td.select([
 #hay que tener en cuenta que llama todas las columnas y que id_venta significa una sola venta y puede duplicarse
 #dado q no todas las ventas pueden ser la misma a pesar de tener valores similares
 #td.groupBy(td.columns)\.count()\.filter(col("count") > 1)\.show(truncate=False)#esto es para evitar que ponga limite de caracteres
-
+#mas sencillo es utilizar la siguiente funcion para eliminar nulos
+#df = df.dropDuplicates(["order_id"])
 
 #correccion teniendo en cuenta que id_venta tiene diferencias
 #td.groupBy("fecha","id_cliente","nombre_cliente","ciudad","categoria","producto","cantidad","precio_unitario","metodo_pago","estado","email").count()\.filter(col("count") > 1) \.show(50, truncate=False)
@@ -216,6 +217,7 @@ td.select("fecha") \
 #hasta el momento coalesce sirve para "unificar" variables, es recomendado no experimentar tanto, su funcion es mas compleja
 
 #pasamos todos los formatos a uno universal
+td.filter(col("fecha"))
 
 td.select("fecha").distinct().show(200, truncate=False)
 print("Registros después de limpiar: ", td.count())
